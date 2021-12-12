@@ -1,0 +1,220 @@
+########################## Config #############################
+
+substitutions:
+# Entities names
+  room_name: "kitchen"
+  device_name: ${room_name}thermostat
+  thermostat_name: "${room_name} thermostat controller"
+  relay_heater_name: "${room_name} heater valve"
+  relay_cooler_name: "${room_name} cooler valve"
+  relay_dehumidifier_name: "${room_name} VMC"
+  temperature_sensor_name: "${room_name} temperature"
+  humidity_sensor_name: "${room_name} humidity"
+  light_sensor_name: "${room_name} light level"
+  
+# Temperature and humidity sensor parameters
+  si7021_update_interval: "300s"
+  temp_decimals: "1"
+  hum_decimals: "0"
+  
+# Light sensor parameters
+  light_update_interval: "300s"
+  light_decimals: "0"
+
+# Wifi signal sensor
+  wifi_update_interval: "300s"
+  
+# Rotary encoder parameters
+  button_debounce_time: "10ms"
+  encoder_resolution: "1" # Possible values: 1,2,4
+  
+# Thermostat parameters
+  default_low_t: "20 °C"
+  default_high_t: "25 °C"
+  visual_min_t: "15 °C"
+  visual_max_t: "30 °C"
+  cooling_off_time: "0s"
+  cooling_run_time: "0s"
+  heating_off_time: "0s"
+  heating_run_time: "0s"
+  idle_time: "0s"
+  cooling_start_offset: "0.5 °C"
+  cooling_stop_offset: "0.5 °C"
+  heating_start_offset: "0.5 °C"
+  heating_stop_offset: "0.5 °C"
+
+# Display parameters
+  display_model: "SSD1306 128x64"
+  i2c_address: "0x3C"
+  
+# PIN configuration
+  light_sensor_pin: "A0"
+  button_pin: "D1"
+  dehumidifier_relay_pin: "D2"
+  heater_relay_pin: "D3"
+  i2c_sda_pin: "D4"
+  i2c_scl_pin: "D5"
+  rotary_encoder_pin_a: "D6"
+  rotary_encoder_pin_b: "D7"
+  cooler_relay_pin: "D8"
+  
+##################### End of Config #####################################
+
+esphome:
+  name: ${device_name}
+
+esp8266:
+  board: nodemcuv2
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+  password: "ac8294f43c830be40bf384280b0f5c04"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Thermostat Fallback Hotspot"
+    password: "NEMwWiz0ek2c"
+
+captive_portal:
+
+
+################################ Start Coding ################################
+
+# Enable I2C bus (GPIO4 for SDA and GPIO5 for SCL)
+i2c:
+  sda: ${i2c_sda_pin}
+  scl: ${i2c_scl_pin}
+  scan: true
+
+# Thermostat configuration
+climate:
+  - platform: thermostat
+    id: this_thermostat
+    name: ${thermostat_name}
+    sensor: si7021_temperature_sensor
+    default_target_temperature_low: ${default_low_t}
+    default_target_temperature_high: ${default_high_t}
+    visual:
+      min_temperature: ${visual_min_t}
+      max_temperature: ${visual_max_t}
+    cool_deadband: ${cooling_start_offset}
+    cool_overrun: ${cooling_stop_offset}
+    heat_deadband: ${heating_start_offset}
+    heat_overrun: ${heating_stop_offset}
+    min_cooling_off_time: ${cooling_off_time}
+    min_cooling_run_time: ${cooling_run_time}
+    min_heating_off_time: ${heating_off_time}
+    min_heating_run_time: ${heating_run_time}
+    min_idle_time: ${idle_time}
+    cool_action:
+      - switch.turn_on: relay_cooler
+    heat_action:
+      - switch.turn_on: relay_heater
+    idle_action:
+      - switch.turn_off: relay_cooler
+      - switch.turn_off: relay_heater
+
+
+# Switch configuration
+switch:
+# Heater relay
+ - platform: gpio
+   pin:  ${heater_relay_pin}
+   id: relay_heater
+   name: ${relay_heater_name}
+# Cooler relay
+ - platform: gpio
+   pin: ${cooler_relay_pin}
+   id: relay_cooler
+   name: ${relay_cooler_name}
+# Dehumidifier relay
+ - platform: gpio
+   pin: ${dehumidifier_relay_pin}
+   id: relay_dehumidifier
+   name: ${relay_dehumidifier_name}
+   
+   
+#Sensors configuration
+sensor:
+# Wifi signal
+  - platform: wifi_signal
+    name: "WiFi signal"
+    update_interval: ${wifi_update_interval}
+# Temperature and humidity sensor configuration (Si7021 or HTU21D)
+  - platform: htu21d
+    temperature:
+      id: si7021_temperature_sensor
+      name: ${temperature_sensor_name}
+      accuracy_decimals: ${temp_decimals}
+    humidity:
+      id: si7021_humidity_sensor
+      name: ${humidity_sensor_name}
+      accuracy_decimals: ${hum_decimals}
+    update_interval: ${si7021_update_interval}
+# Rotary Encoder (internal)
+  - platform: rotary_encoder
+    name: "encoder"
+    id: encoder
+    internal: true
+    resolution: ${encoder_resolution} 
+    pin_a:
+      number: ${rotary_encoder_pin_a}
+      mode: INPUT_PULLUP
+    pin_b:
+      number: ${rotary_encoder_pin_b}
+      mode: INPUT_PULLUP
+# Photoresitor (Analog output)
+  - platform: adc
+    pin: ${light_sensor_pin}
+    name: ${light_sensor_name}
+    unit_of_measurement: "%"
+    accuracy_decimals: ${light_decimals}
+    update_interval: ${light_update_interval}
+    filters:
+      - multiply: 100   
+
+
+# Binary sensors configuration
+binary_sensor:
+# Button (internal)
+  - platform: gpio
+    pin:
+      number: ${button_pin}
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Button"
+    id: "button"
+    internal: true
+    filters:
+      - delayed_on: ${button_debounce_time}
+      - delayed_off: ${button_debounce_time}
+      
+
+# Display configuration
+display:
+  - platform: ssd1306_i2c
+    model: ${display_model}
+    address: ${i2c_address}
+    id: this_display
+    pages:
+      - id: page1
+        lambda: |-
+          it.circle(25, 25, 10);
+      - id: page2
+        lambda: |-
+          it.filled_circle(50, 50, 10);
+
+interval:
+  - interval: 5s
+    then:
+      - display.page.show_next: this_display
+      - component.update: this_display
