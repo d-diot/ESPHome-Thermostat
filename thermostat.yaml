@@ -5,9 +5,14 @@ substitutions:
   room_name: "kitchen"
   device_name: ${room_name}thermostat
   thermostat_name: "${room_name} thermostat controller"
-  relay_heater_name: "${room_name} heater valve"
-  relay_cooler_name: "${room_name} cooler valve"
-  relay_dehumidifier_name: "${room_name} VMC"
+  relay_1_name: "${room_name} heater"
+  relay_2_name: "${room_name} cooler"
+  relay_3_name: "${room_name} radiator valve"
+  relay_4_name: "${room_name} circulating pump"
+  relay_5_name: "${room_name} fan"
+  relay_6_name: "${room_name} dryer"
+  relay_7_name: "${room_name} dryer valve"
+  relay_8_name: "${room_name} dryer pump"
   temperature_sensor_name: "${room_name} temperature"
   humidity_sensor_name: "${room_name} humidity"
   light_sensor_name: "${room_name} light level"
@@ -24,9 +29,17 @@ substitutions:
 # Wifi signal sensor
   wifi_update_interval: "300s"
   
-# Rotary encoder parameters
+# Rotary encoder with push button parameters
   button_debounce_time: "10ms"
+  click_min_length: "50ms"
+  click_max_length: "350ms"
+  long_press_min_length: "500ms"
+  long_press_max_length: "1000ms"
   encoder_resolution: "1" # Possible values: 1,2,4
+
+# Buzzer parameters
+  click_sound: "cick:d=1,o=5,b=100:e6"
+  long_press_sound: "long:d=1,o=5,b=100:e6"
   
 # Thermostat parameters
   default_low_t: "20 °C"
@@ -45,18 +58,30 @@ substitutions:
 
 # Display parameters
   display_model: "SSD1306 128x64"
-  i2c_address: "0x3C"
+  display_i2c_address: "0x3C"
   
-# PIN configuration
+# ESP8266 PIN configuration
   light_sensor_pin: "A0"
   button_pin: "D1"
-  dehumidifier_relay_pin: "D2"
-  heater_relay_pin: "D3"
+  buzzer_pin: "D2"
   i2c_sda_pin: "D4"
   i2c_scl_pin: "D5"
   rotary_encoder_pin_a: "D6"
   rotary_encoder_pin_b: "D7"
-  cooler_relay_pin: "D8"
+
+# PCF8574 I/O Expander parameters
+  exp_i2c_address: "0x20"
+  
+# PCF8574 I/O Expander PIN configuration  
+  relay_1_pin: "0"
+  relay_2_pin: "1"
+  relay_3_pin: "2"
+  relay_4_pin: "3"
+  relay_5_pin: "4"
+  relay_6_pin: "5"
+  relay_7_pin: "6"
+  relay_8_pin: "7"
+  
   
 ##################### End of Config #####################################
 
@@ -86,14 +111,19 @@ wifi:
 
 captive_portal:
 
-
-################################ Start Coding ################################
-
 # Enable I2C bus (GPIO4 for SDA and GPIO5 for SCL)
 i2c:
   sda: ${i2c_sda_pin}
   scl: ${i2c_scl_pin}
   scan: true
+
+# Buzzer configuration
+output:
+  - platform: esp8266_pwm
+    pin: ${buzzer_pin}
+    id: rtttl_out
+rtttl:
+  output: rtttl_out    
 
 # Thermostat configuration
 climate:
@@ -116,32 +146,107 @@ climate:
     min_heating_run_time: ${heating_run_time}
     min_idle_time: ${idle_time}
     cool_action:
-      - switch.turn_on: relay_cooler
+      - switch.turn_on: relay_2
+      - switch.turn_on: relay_3
+      - switch.turn_on: relay_4
     heat_action:
-      - switch.turn_on: relay_heater
+      - switch.turn_on: relay_1
+      - switch.turn_on: relay_3
+      - switch.turn_on: relay_4
     idle_action:
-      - switch.turn_off: relay_cooler
-      - switch.turn_off: relay_heater
+      - switch.turn_off: relay_1
+      - switch.turn_off: relay_2
+      - switch.turn_off: relay_3
+      - switch.turn_off: relay_3
 
+# PCF8574 I/O Expander configuration
+pcf8574:
+  - id: pcf8574_hub_1
+    address: ${exp_i2c_address}
+    pcf8575: false
 
 # Switch configuration
 switch:
-# Heater relay
- - platform: gpio
-   pin:  ${heater_relay_pin}
-   id: relay_heater
-   name: ${relay_heater_name}
-# Cooler relay
- - platform: gpio
-   pin: ${cooler_relay_pin}
-   id: relay_cooler
-   name: ${relay_cooler_name}
-# Dehumidifier relay
- - platform: gpio
-   pin: ${dehumidifier_relay_pin}
-   id: relay_dehumidifier
-   name: ${relay_dehumidifier_name}
-   
+# Relay 1
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_hub_1
+      number: ${relay_1_pin}
+      mode:
+        output: true
+      inverted: false
+    id: relay_1
+    name: ${relay_1_name}
+# Relay 2
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_hub_1
+      number: ${relay_2_pin}
+      mode:
+        output: true
+      inverted: false
+    id: relay_2
+    name: ${relay_2_name}
+# Relay 3
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_hub_1
+      number: ${relay_3_pin}
+      mode:
+        output: true
+      inverted: false
+    id: relay_3
+    name: ${relay_3_name}
+# Relay 4
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_hub_1
+      number: ${relay_4_pin}
+      mode:
+        output: true
+      inverted: false
+    id: relay_4
+    name: ${relay_4_name}
+# Relay 5
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_hub_1
+      number: ${relay_5_pin}
+      mode:
+        output: true
+      inverted: false
+    id: relay_5
+    name: ${relay_5_name}
+# Relay 6
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_hub_1
+      number: ${relay_6_pin}
+      mode:
+        output: true
+      inverted: false
+    id: relay_6
+    name: ${relay_6_name}
+# Relay 7
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_hub_1
+      number: ${relay_7_pin}
+      mode:
+        output: true
+      inverted: false
+    id: relay_7
+    name: ${relay_7_name}
+# Relay 8
+  - platform: gpio
+    pin:
+      pcf8574: pcf8574_hub_1
+      number: ${relay_8_pin}
+      mode:
+        output: true
+      inverted: false
+    id: relay_8
+    name: ${relay_8_name}
    
 #Sensors configuration
 sensor:
@@ -160,7 +265,7 @@ sensor:
       name: ${humidity_sensor_name}
       accuracy_decimals: ${hum_decimals}
     update_interval: ${si7021_update_interval}
-# Rotary Encoder (internal)
+# Rotary Encoder 
   - platform: rotary_encoder
     name: "encoder"
     id: encoder
@@ -182,7 +287,6 @@ sensor:
     filters:
       - multiply: 100   
 
-
 # Binary sensors configuration
 binary_sensor:
 # Button (internal)
@@ -195,15 +299,24 @@ binary_sensor:
     id: "button"
     internal: true
     filters:
-      - delayed_on: ${button_debounce_time}
-      - delayed_off: ${button_debounce_time}
-      
+      - delayed_on_off: ${button_debounce_time}
+    on_click:
+    - min_length: ${click_min_length}
+      max_length: ${click_max_length}
+      then:
+        - rtttl.play: ${click_sound}
+        - display.page.show_next: this_display
+    - min_length: ${long_press_min_length}
+      max_length: ${long_press_max_length}
+      then:
+        - rtttl.play: ${long_press_sound}
 
+  
 # Display configuration
 display:
   - platform: ssd1306_i2c
     model: ${display_model}
-    address: ${i2c_address}
+    address: ${display_i2c_address}
     id: this_display
     pages:
       - id: page1
