@@ -30,16 +30,16 @@ substitutions:
   wifi_update_interval: "300s"
   
 # Rotary encoder with push button parameters
-  button_debounce_time: "10ms"
+  button_debounce_time: "3ms"
   click_min_length: "50ms"
-  click_max_length: "350ms"
-  long_press_min_length: "500ms"
-  long_press_max_length: "1000ms"
+  click_max_length: "600ms"
+  long_press_min_length: "601ms"
+  long_press_max_length: "10000ms"
   encoder_resolution: "1" # Possible values: 1,2,4
 
 # Buzzer parameters
-  click_sound: "cick:d=1,o=5,b=100:e6"
-  long_press_sound: "long:d=1,o=5,b=100:e6"
+  click_sound: "cick:d=32,o=5,b=150:e6"
+  long_press_sound: "long:d=8,o=5,b=50:e5"
   
 # Thermostat parameters
   default_low_t: "20 °C"
@@ -59,6 +59,8 @@ substitutions:
 # Display parameters
   display_model: "SSD1306 128x64"
   display_i2c_address: "0x3C"
+  display_auto_off_time: "1 min"
+  display_boot_page_time: "3s"
   
 # ESP8266 PIN configuration
   light_sensor_pin: "A0"
@@ -87,6 +89,14 @@ substitutions:
 
 esphome:
   name: ${device_name}
+  on_boot:
+    priority: -100
+    then:
+      - display.page.show: page0
+      - delay: ${display_boot_page_time}
+      - display.page.show: page1
+      - script.execute: display_on_off
+  
 
 esp8266:
   board: nodemcuv2
@@ -153,11 +163,19 @@ climate:
       - switch.turn_on: relay_1
       - switch.turn_on: relay_3
       - switch.turn_on: relay_4
+    dry_action:
+      - switch.turn_on: relay_6
+      - switch.turn_on: relay_7
+      - switch.turn_on: relay_8
     idle_action:
       - switch.turn_off: relay_1
       - switch.turn_off: relay_2
       - switch.turn_off: relay_3
-      - switch.turn_off: relay_3
+      - switch.turn_off: relay_4
+      - switch.turn_off: relay_6
+      - switch.turn_off: relay_7
+      - switch.turn_off: relay_8
+      
 
 # PCF8574 I/O Expander configuration
 pcf8574:
@@ -289,7 +307,7 @@ sensor:
 
 # Binary sensors configuration
 binary_sensor:
-# Button (internal)
+# Button 
   - platform: gpio
     pin:
       number: ${button_pin}
@@ -305,12 +323,24 @@ binary_sensor:
       max_length: ${click_max_length}
       then:
         - rtttl.play: ${click_sound}
-        - display.page.show_next: this_display
+        - if:
+            condition:
+              - script.is_running: display_on_off
+            then:
+              - script.execute: display_on_off
+              - display.page.show_next: this_display
+              - component.update: this_display
+            else:
+              - script.execute: display_on_off
+              - display.page.show: page1
+              - component.update: this_display
     - min_length: ${long_press_min_length}
       max_length: ${long_press_max_length}
       then:
         - rtttl.play: ${long_press_sound}
-
+        - script.execute: display_on_off
+        - display.page.show: page1
+        - component.update: this_display
   
 # Display configuration
 display:
@@ -319,15 +349,30 @@ display:
     address: ${display_i2c_address}
     id: this_display
     pages:
+      - id: page0
+        lambda: |-
+          it.rectangle(50, 60, 30, 42);
       - id: page1
         lambda: |-
           it.circle(25, 25, 10);
       - id: page2
         lambda: |-
           it.filled_circle(50, 50, 10);
+      - id: page3
+        lambda: |-
+          it.filled_rectangle(50, 60, 30, 42);
+    on_page_change:
+      - to: page0
+        then:
+          - display.page.show: page1
+          - component.update: this_display
 
-interval:
-  - interval: 5s
+script:
+  - id: display_on_off
+    mode: restart     
     then:
-      - display.page.show_next: this_display
-      - component.update: this_display
+      - lambda: |-
+          id(this_display).turn_on();
+      - delay: ${display_auto_off_time}
+      - lambda: |-
+          id(this_display).turn_off();
