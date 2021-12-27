@@ -353,7 +353,7 @@ display:
     pages:
       - id: page0
         lambda: |-
-          it.rectangle(50, 60, 30, 42);
+          it.rectangle(60, 25, 30, 42);
       - id: page1
         lambda: |-
           it.circle(25, 25, 10);
@@ -362,13 +362,23 @@ display:
           it.filled_circle(50, 50, 10);
       - id: page3
         lambda: |-
-          it.filled_rectangle(50, 60, 30, 42);
+          it.filled_rectangle(10, 10, 30, 42);
+      - id: page4
+        lambda: |-
+          it.line(0, 0, 50, 50);
+      - id: page5
+        lambda: |-
+          it.printf(0, 0, id(font1), "Temp: %.1f °C", id(si7021_temperature_sensor).state);
+      - id: page6
+        lambda: |-
+          it.printf(0, 0, id(font1), "Hum: %.1f", id(si7021_humidity_sensor).state);
     on_page_change:
       - to: page0
         then:
           - display.page.show: page1
           - component.update: this_display
 
+# Script
 script:
   - id: display_on_off
     mode: restart     
@@ -378,3 +388,9 @@ script:
       - delay: ${display_auto_off_time}
       - lambda: |-
           id(this_display).turn_off();
+
+# Font and images          
+font:
+  - file: "fonts/thermostat/refsan.ttf"
+    id: font1
+    size: 13
