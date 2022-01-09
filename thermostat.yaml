@@ -15,16 +15,18 @@ substitutions:
   relay_8_name: "${room_name} dryer pump"
   temperature_sensor_name: "${room_name} temperature"
   humidity_sensor_name: "${room_name} humidity"
-  light_sensor_name: "${room_name} light level"
+  v_sensor_name: "${room_name} thermostat output voltage"
   
 # Temperature and humidity sensor parameters
   si7021_update_interval: "300s"
   temp_decimals: "1"
-  hum_decimals: "0"
+  hum_decimals: "1"
   
-# Light sensor parameters
-  light_update_interval: "300s"
-  light_decimals: "0"
+# Voltage sensor parameters
+  v_update_interval: "1s"
+  v_decimals: "1"
+  v_esp8266_multiplier: "3.3" # ESP8266 internal voltage divider (3.3V->1V)
+  v_correction_factor: "8.5" # The correct correction factor can be calculated dividing the real voltage value measured with a multimeter by the voltage value determined by the ESP8266 setting the correction factor to 8.5 [R1=7.5, R2=1K -> (R1+R2)/R2=8.5]  
 
 # Wifi signal sensor
   wifi_update_interval: "300s"
@@ -64,7 +66,7 @@ substitutions:
   display_boot_page_time: "3s"
   
 # ESP8266 PIN configuration
-  light_sensor_pin: "A0"
+  v_sensor_pin: "A0"
   button_pin: "D1"
   buzzer_pin: "D2"
   i2c_sda_pin: "D4"
@@ -297,15 +299,18 @@ sensor:
     pin_b:
       number: ${rotary_encoder_pin_b}
       mode: INPUT_PULLUP
-# Photoresitor (Analog output)
+# Voltage sensor (Analog output)
   - platform: adc
-    pin: ${light_sensor_pin}
-    name: ${light_sensor_name}
-    unit_of_measurement: "%"
-    accuracy_decimals: ${light_decimals}
-    update_interval: ${light_update_interval}
+    pin: ${v_sensor_pin}
+    name: ${v_sensor_name}
+    id: v_sensor
+    internal: true
+    unit_of_measurement: "V"
+    accuracy_decimals: ${v_decimals}
+    update_interval: ${v_update_interval}
     filters:
-      - multiply: 100   
+      - multiply: ${v_esp8266_multiplier}
+      - multiply: ${v_correction_factor}
 
 # Binary sensors configuration
 binary_sensor:
