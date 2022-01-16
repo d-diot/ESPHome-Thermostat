@@ -49,6 +49,7 @@ substitutions:
   default_high_t: "25 °C"
   visual_min_t: "15 °C"
   visual_max_t: "30 °C"
+  visual_temperature_step: "0.1 °C"
   cooling_off_time: "0s"
   cooling_run_time: "0s"
   heating_off_time: "0s"
@@ -89,6 +90,11 @@ substitutions:
   
   
 ##################### End of Config #####################################
+
+globals:
+   - id: this_thermostat_action
+     type: char*
+     restore_value: no
 
 esphome:
   name: ${device_name}
@@ -150,6 +156,7 @@ climate:
     visual:
       min_temperature: ${visual_min_t}
       max_temperature: ${visual_max_t}
+      temperature_step: ${visual_temperature_step}
     cool_deadband: ${cooling_start_offset}
     cool_overrun: ${cooling_stop_offset}
     heat_deadband: ${heating_start_offset}
@@ -358,10 +365,33 @@ display:
     pages:
       - id: page0
         lambda: |-
-          it.rectangle(60, 25, 30, 42);
+          it.printf(0, 10, id(font2), "d-diot");
       - id: page1
         lambda: |-
-          it.circle(25, 25, 10);
+          if (id(this_thermostat).action == 0) {
+            id(this_thermostat_action) = "Off";
+          }
+          if (id(this_thermostat).action == 2) {
+            id(this_thermostat_action) = "Cooling";
+          }
+          if (id(this_thermostat).action == 3) {
+            id(this_thermostat_action) = "Heating";
+          }
+          if (id(this_thermostat).action == 4) {
+            id(this_thermostat_action) = "Idle";
+          }
+          if (id(this_thermostat).action == 5) {
+            id(this_thermostat_action) = "Drying";
+          }
+          if (id(this_thermostat).action == 6) {
+            id(this_thermostat_action) = "Fan";
+          }
+          it.image(0, 0, id(wifi_no_signal));
+          it.printf(it.get_width(), 0, id(font3), TextAlign::RIGHT, "%s", id(this_thermostat_action));
+          it.line(0, 19, 128, 19);
+          it.printf(0, 22, id(font1), "%.1f°C", id(si7021_temperature_sensor).state);
+          it.printf(it.get_width(), 22, id(font1), TextAlign::RIGHT, "%.1f%%", id(si7021_humidity_sensor).state);
+          it.line(0, 45, 128, 45);
       - id: page2
         lambda: |-
           it.filled_circle(50, 50, 10);
@@ -376,7 +406,7 @@ display:
           it.printf(0, 0, id(font1), "Temp: %.1f °C", id(si7021_temperature_sensor).state);
       - id: page6
         lambda: |-
-          it.printf(0, 0, id(font1), "Hum: %.1f", id(si7021_humidity_sensor).state);
+          it.printf(0, 0, id(font1), "Hum: %.1f%%", id(si7021_humidity_sensor).state);
     on_page_change:
       - to: page0
         then:
@@ -396,6 +426,17 @@ script:
 
 # Font and images          
 font:
-  - file: "fonts/thermostat/refsan.ttf"
+  - file: "fonts/thermostat/Montserrat-Regular.ttf"
     id: font1
-    size: 13
+    size: 18
+  - file: "fonts/thermostat/nasalization.ttf"
+    id: font2
+    size: 32
+  - file: "fonts/thermostat/Montserrat-Regular.ttf"
+    id: font3
+    size: 12
+
+image:
+  - file: "images/thermostat/wifi-strength-alert-outline.bmp"
+    id: wifi_no_signal
+    resize: 18x18
