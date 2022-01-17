@@ -23,13 +23,13 @@ substitutions:
   hum_decimals: "1"
   
 # Voltage sensor parameters
-  v_update_interval: "1s"
+  v_update_interval: "600s"
   v_decimals: "1"
   v_esp8266_multiplier: "3.3" # ESP8266 internal voltage divider (3.3V->1V)
   v_correction_factor: "8.5" # The correct correction factor can be calculated dividing the real voltage value measured with a multimeter by the voltage value determined by the ESP8266 setting the correction factor to 8.5 [R1=7.5, R2=1K -> (R1+R2)/R2=8.5]  
 
 # Wifi signal sensor
-  wifi_update_interval: "300s"
+  wifi_update_interval: "10s"
   
 # Rotary encoder with push button parameters
   button_debounce_time: "3ms"
@@ -92,8 +92,8 @@ substitutions:
 ##################### End of Config #####################################
 
 globals:
-   - id: this_thermostat_action
-     type: char*
+   - id: my_wifi_status
+     type: bool
      restore_value: no
 
 esphome:
@@ -283,6 +283,7 @@ sensor:
   - platform: wifi_signal
     name: "WiFi signal"
     update_interval: ${wifi_update_interval}
+    id: wifi_strength
 # Temperature and humidity sensor configuration (Si7021 or HTU21D)
   - platform: htu21d
     temperature:
@@ -369,29 +370,63 @@ display:
       - id: page1
         lambda: |-
           if (id(this_thermostat).action == 0) {
-            id(this_thermostat_action) = "Off";
+            it.printf(it.get_width(), 49, id(font3), TextAlign::RIGHT, "Off");
           }
           if (id(this_thermostat).action == 2) {
-            id(this_thermostat_action) = "Cooling";
+            it.printf(it.get_width(), 49, id(font3), TextAlign::RIGHT, "Cooling");
           }
           if (id(this_thermostat).action == 3) {
-            id(this_thermostat_action) = "Heating";
+            it.printf(it.get_width(), 49, id(font3), TextAlign::RIGHT, "Heating");
           }
           if (id(this_thermostat).action == 4) {
-            id(this_thermostat_action) = "Idle";
+            it.printf(it.get_width(), 49, id(font3), TextAlign::RIGHT, "Idle");
           }
           if (id(this_thermostat).action == 5) {
-            id(this_thermostat_action) = "Drying";
+            it.printf(it.get_width(), 49, id(font3), TextAlign::RIGHT, "Drying");
           }
           if (id(this_thermostat).action == 6) {
-            id(this_thermostat_action) = "Fan";
+            it.printf(it.get_width(), 49, id(font3), TextAlign::RIGHT, "Fan");
           }
-          it.image(0, 0, id(wifi_no_signal));
-          it.printf(it.get_width(), 0, id(font3), TextAlign::RIGHT, "%s", id(this_thermostat_action));
+          if (id(my_wifi_status) == false) {
+            it.image(0, 0, id(wifi_no_signal));
+          } else {
+            if (id(wifi_strength).state > -80) {
+              it.image(0, 0, id(wifi_4));
+            }
+          }
           it.line(0, 19, 128, 19);
           it.printf(0, 22, id(font1), "%.1f°C", id(si7021_temperature_sensor).state);
           it.printf(it.get_width(), 22, id(font1), TextAlign::RIGHT, "%.1f%%", id(si7021_humidity_sensor).state);
           it.line(0, 45, 128, 45);
+          if (id(this_thermostat).mode == 0) {
+            it.image(55, 48, id(power_standby_icon));
+            it.printf(0, 49, id(font3), "OFF");
+          }
+          if (id(this_thermostat).mode == 1) {
+            it.image(55, 48, id(sync_icon));
+            it.printf(0, 49, id(font3), "H-C");
+          }
+          if (id(this_thermostat).mode == 2) {
+            it.image(55, 48, id(snowflake));
+            it.printf(0, 49, id(font3), "COOL");
+          }
+          if (id(this_thermostat).mode == 3) {
+            it.image(55, 48, id(fire_icon));
+            it.printf(0, 49, id(font3), "HEAT");
+          }
+          if (id(this_thermostat).mode == 4) {
+            it.image(55, 48, id(fan_icon));
+            it.printf(0, 49, id(font3), "FAN");
+          }
+          if (id(this_thermostat).mode == 5) {
+            it.image(55, 48, id(water_percent_icon));
+            it.printf(0, 49, id(font3), "DRY");
+          }
+          if (id(this_thermostat).mode == 6) {
+            it.image(55, 48, id(refresh_auto));
+            it.printf(0, 49, id(font3), "AUTO");
+          }
+          it.printf(it.get_width(), 0, id(font4), TextAlign::RIGHT, "%.1f°C - %.1f°C", id(this_thermostat).target_temperature_low, id(this_thermostat).target_temperature_high);
       - id: page2
         lambda: |-
           it.filled_circle(50, 50, 10);
@@ -435,8 +470,58 @@ font:
   - file: "fonts/thermostat/Montserrat-Regular.ttf"
     id: font3
     size: 12
+  - file: "fonts/thermostat/Montserrat-Regular.ttf"
+    id: font4
+    size: 14
 
 image:
   - file: "images/thermostat/wifi-strength-alert-outline.bmp"
     id: wifi_no_signal
     resize: 18x18
+  - file: "images/thermostat/wifi-strength-1.bmp"
+    id: wifi_1
+    resize: 18x18
+  - file: "images/thermostat/wifi-strength-2.bmp"
+    id: wifi_2
+    resize: 18x18
+  - file: "images/thermostat/wifi-strength-3.bmp"
+    id: wifi_3
+    resize: 18x18
+  - file: "images/thermostat/wifi-strength-4.bmp"
+    id: wifi_4
+    resize: 18x18
+  - file: "images/thermostat/fire.bmp"
+    id: fire_icon
+    resize: 18x18
+  - file: "images/thermostat/power-standby.bmp"
+    id: power_standby_icon
+    resize: 18x18
+  - file: "images/thermostat/snowflake.bmp"
+    id: snowflake
+    resize: 18x18
+  - file: "images/thermostat/sync.bmp"
+    id: sync_icon
+    resize: 18x18
+  - file: "images/thermostat/water-percent.bmp"
+    id: water_percent_icon
+    resize: 18x18
+  - file: "images/thermostat/fan.bmp"
+    id: fan_icon
+    resize: 18x18
+  - file: "images/thermostat/refresh-auto.bmp"
+    id: refresh_auto
+    resize: 18x18
+   
+# Interval
+interval:
+  - interval: ${wifi_update_interval}
+    then:
+      if:
+        condition:
+          wifi.connected:
+        then:
+          - lambda: |-
+              id(my_wifi_status) = true;
+        else:
+          - lambda: |-
+              id(my_wifi_status) = false;
