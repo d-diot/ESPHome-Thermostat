@@ -25,11 +25,11 @@ substitutions:
 # Voltage sensor parameters
   v_update_interval: "600s"
   v_decimals: "1"
-  v_esp8266_multiplier: "3.3" # ESP8266 internal voltage divider (3.3V->1V)
-  v_correction_factor: "8.5" # The correct correction factor can be calculated dividing the real voltage value measured with a multimeter by the voltage value determined by the ESP8266 setting the correction factor to 8.5 [R1=7.5, R2=1K -> (R1+R2)/R2=8.5]  
+  v_multiplier: "28.05" # Theoretical voltage multiplier. Product of ESP8266 internal voltage divider (3.3V->1V) multiplied by the voltage diveder of the d-diot-thermostat-pcb [R1=7.5, R2=1K -> (R1+R2)/R2=8.5]
+  v_correction_factor: "1.0" # The precise correction factor can be calculated dividing the real voltage value measured with a multimeter by the voltage value indicated by the ESP8266 setting the v_ultiplier to 28.05   
 
 # Wifi signal sensor
-  wifi_update_interval: "10s"
+  wifi_update_interval: "180s"
   
 # Rotary encoder with push button parameters
   button_debounce_time: "3ms"
@@ -317,7 +317,7 @@ sensor:
     accuracy_decimals: ${v_decimals}
     update_interval: ${v_update_interval}
     filters:
-      - multiply: ${v_esp8266_multiplier}
+      - multiply: ${v_multiplier}
       - multiply: ${v_correction_factor}
 
 # Binary sensors configuration
@@ -366,7 +366,7 @@ display:
     pages:
       - id: page0
         lambda: |-
-          it.printf(0, 10, id(font2), "d-diot");
+          it.image(0, 0, id(logo));
       - id: page1
         lambda: |-
           if (id(this_thermostat).action == 0) {
@@ -390,12 +390,29 @@ display:
           if (id(my_wifi_status) == false) {
             it.image(0, 0, id(wifi_no_signal));
           } else {
-            if (id(wifi_strength).state > -80) {
+            if (id(wifi_strength).state >= -30) {
               it.image(0, 0, id(wifi_4));
+            }
+            if (id(wifi_strength).state >= -67 and id(wifi_strength).state < -30) {
+              it.image(0, 0, id(wifi_4));
+            }
+            if (id(wifi_strength).state >= -70 and id(wifi_strength).state < -67) {
+              it.image(0, 0, id(wifi_3));
+            }
+            if (id(wifi_strength).state >= -80 and id(wifi_strength).state < -70) {
+              it.image(0, 0, id(wifi_2));
+            }
+            if (id(wifi_strength).state >= -90 and id(wifi_strength).state < -80) {
+              it.image(0, 0, id(wifi_1));
+            }
+            if (id(wifi_strength).state < -90) {
+              it.image(0, 0, id(wifi_1_alert));
             }
           }
           it.line(0, 19, 128, 19);
-          it.printf(0, 22, id(font1), "%.1f°C", id(si7021_temperature_sensor).state);
+          it.image(0, 20, id(thermometer));
+          it.printf(20, 22, id(font1), "%.1f°C", id(si7021_temperature_sensor).state);
+          it.image(63, 20, id(water_percent));
           it.printf(it.get_width(), 22, id(font1), TextAlign::RIGHT, "%.1f%%", id(si7021_humidity_sensor).state);
           it.line(0, 45, 128, 45);
           if (id(this_thermostat).mode == 0) {
@@ -426,7 +443,7 @@ display:
             it.image(55, 48, id(refresh_auto));
             it.printf(0, 49, id(font3), "AUTO");
           }
-          it.printf(it.get_width(), 0, id(font4), TextAlign::RIGHT, "%.1f°C - %.1f°C", id(this_thermostat).target_temperature_low, id(this_thermostat).target_temperature_high);
+          it.printf(it.get_width(), 0, id(font3), TextAlign::RIGHT, "%.1f°C - %.1f°C", id(this_thermostat).target_temperature_low, id(this_thermostat).target_temperature_high);
       - id: page2
         lambda: |-
           it.filled_circle(50, 50, 10);
@@ -463,20 +480,16 @@ script:
 font:
   - file: "fonts/thermostat/Montserrat-Regular.ttf"
     id: font1
-    size: 18
-  - file: "fonts/thermostat/nasalization.ttf"
-    id: font2
-    size: 32
+    size: 16
   - file: "fonts/thermostat/Montserrat-Regular.ttf"
     id: font3
     size: 12
-  - file: "fonts/thermostat/Montserrat-Regular.ttf"
-    id: font4
-    size: 14
-
 image:
   - file: "images/thermostat/wifi-strength-alert-outline.bmp"
     id: wifi_no_signal
+    resize: 18x18
+  - file: "images/thermostat/wifi-strength-1-alert.bmp"
+    id: wifi_1_alert
     resize: 18x18
   - file: "images/thermostat/wifi-strength-1.bmp"
     id: wifi_1
@@ -490,6 +503,10 @@ image:
   - file: "images/thermostat/wifi-strength-4.bmp"
     id: wifi_4
     resize: 18x18
+  - file: "images/thermostat/thermometer.bmp"
+    id: thermometer
+  - file: "images/thermostat/water-percent.bmp"
+    id: water_percent
   - file: "images/thermostat/fire.bmp"
     id: fire_icon
     resize: 18x18
@@ -511,10 +528,13 @@ image:
   - file: "images/thermostat/refresh-auto.bmp"
     id: refresh_auto
     resize: 18x18
+  - file: "images/thermostat/d-diot.bmp"
+    id: logo
+    resize: 128x64
    
 # Interval
 interval:
-  - interval: ${wifi_update_interval}
+  - interval: 1s
     then:
       if:
         condition:
