@@ -38,6 +38,7 @@ substitutions:
   long_press_min_length: "601ms"
   long_press_max_length: "10000ms"
   encoder_resolution: "1" # Possible values: 1,2,4
+  encoder_temp_step: "0.1"
 
 # Buzzer parameters
   click_sound: "click:d=32,o=5,b=200:32g"
@@ -307,6 +308,55 @@ sensor:
     pin_b:
       number: ${rotary_encoder_pin_b}
       mode: INPUT_PULLUP
+    on_clockwise:
+      - if:
+          condition:
+            and:
+              - script.is_running: display_on_off
+              - display.is_displaying_page: page2
+          then:
+            - climate.control:
+                id: this_thermostat
+                target_temperature_low: !lambda "return id(this_thermostat).target_temperature_low + ${encoder_temp_step};"
+            - component.update: this_display
+            - script.execute: display_on_off
+          else:
+            - if:
+                condition:
+                  and:
+                     - script.is_running: display_on_off
+                     - display.is_displaying_page: page3
+                then:
+                  - climate.control:
+                      id: this_thermostat
+                      target_temperature_high: !lambda "return id(this_thermostat).target_temperature_high + ${encoder_temp_step};"
+                  - component.update: this_display
+                  - script.execute: display_on_off
+    on_anticlockwise:
+      - if:
+          condition:
+            and:
+              - script.is_running: display_on_off
+              - display.is_displaying_page: page2
+          then:
+            - climate.control:
+                id: this_thermostat
+                target_temperature_low: !lambda "return id(this_thermostat).target_temperature_low - ${encoder_temp_step};"
+            - component.update: this_display
+            - script.execute: display_on_off
+          else:
+            - if:
+                condition:
+                  and:
+                     - script.is_running: display_on_off
+                     - display.is_displaying_page: page3
+                then:
+                  - climate.control:
+                      id: this_thermostat
+                      target_temperature_high: !lambda "return id(this_thermostat).target_temperature_high - ${encoder_temp_step};"
+                  - component.update: this_display
+                  - script.execute: display_on_off
+
 # Voltage sensor (Analog output)
   - platform: adc
     pin: ${v_sensor_pin}
@@ -412,7 +462,7 @@ display:
           it.line(0, 19, 128, 19);
           it.image(0, 20, id(thermometer));
           it.printf(20, 22, id(font1), "%.1f°C", id(si7021_temperature_sensor).state);
-          it.image(63, 20, id(water_percent));
+          it.image(62, 20, id(water_percent));
           it.printf(it.get_width(), 22, id(font1), TextAlign::RIGHT, "%.1f%%", id(si7021_humidity_sensor).state);
           it.line(0, 45, 128, 45);
           if (id(this_thermostat).mode == 0) {
@@ -446,19 +496,23 @@ display:
           it.printf(it.get_width(), 0, id(font3), TextAlign::RIGHT, "%.1f°C - %.1f°C", id(this_thermostat).target_temperature_low, id(this_thermostat).target_temperature_high);
       - id: page2
         lambda: |-
-          it.filled_circle(50, 50, 10);
+          it.printf(15, 0, id(font3), "Min. Temperature");
+          it.line(0, 19, 128, 19);
+          it.printf(10, 20, id(font2), "%.1f°C", id(this_thermostat).target_temperature_low);
       - id: page3
         lambda: |-
-          it.filled_rectangle(10, 10, 30, 42);
+          it.printf(15, 0, id(font3), "Max Temperature");
+          it.line(0, 19, 128, 19);
+          it.printf(10, 20, id(font2), "%.1f°C", id(this_thermostat).target_temperature_high);
       - id: page4
         lambda: |-
-          it.line(0, 0, 50, 50);
+          it.printf(50, 0, id(font3), "Mode");
+          it.line(0, 19, 128, 19);
       - id: page5
         lambda: |-
-          it.printf(0, 0, id(font1), "Temp: %.1f °C", id(si7021_temperature_sensor).state);
-      - id: page6
-        lambda: |-
-          it.printf(0, 0, id(font1), "Hum: %.1f%%", id(si7021_humidity_sensor).state);
+           it.printf(15, 0, id(font3), "MT3608 Voltage");
+           it.line(0, 19, 128, 19);
+           it.printf(10, 20, id(font2), "%.1f V", id(v_sensor).state);
     on_page_change:
       - to: page0
         then:
@@ -482,8 +536,13 @@ font:
     id: font1
     size: 16
   - file: "fonts/thermostat/Montserrat-Regular.ttf"
+    id: font2
+    size: 32
+  - file: "fonts/thermostat/Montserrat-Regular.ttf"
     id: font3
     size: 12
+
+
 image:
   - file: "images/thermostat/wifi-strength-alert-outline.bmp"
     id: wifi_no_signal
