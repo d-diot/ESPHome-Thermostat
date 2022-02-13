@@ -25,7 +25,7 @@ substitutions:
 # Voltage sensor parameters
   v_update_interval: "600s"
   v_decimals: "1"
-  v_multiplier: "28.05" # Theoretical voltage multiplier. Product of ESP8266 internal voltage divider (3.3V->1V) multiplied by the voltage diveder of the d-diot-thermostat-pcb [R1=7.5, R2=1K -> (R1+R2)/R2=8.5]
+  v_multiplier: "28.05" # Theoretical voltage multiplier. Product of ESP8266 internal voltage divider (3.3V->1V) multiplied by the voltage divider of the d-diot-thermostat-pcb [R1=7.5, R2=1K -> (R1+R2)/R2=8.5]
   v_correction_factor: "1.0" # The precise correction factor can be calculated dividing the real voltage value measured with a multimeter by the voltage value indicated by the ESP8266 setting the v_ultiplier to 28.05   
 
 # Wifi signal sensor
@@ -55,6 +55,8 @@ substitutions:
   cooling_run_time: "0s"
   heating_off_time: "0s"
   heating_run_time: "0s"
+  min_fanning_off_time: "0s"
+  min_fanning_run_time: "0s"
   idle_time: "0s"
   cooling_start_offset: "0.5 °C"
   cooling_stop_offset: "0.5 °C"
@@ -166,6 +168,8 @@ climate:
     min_cooling_run_time: ${cooling_run_time}
     min_heating_off_time: ${heating_off_time}
     min_heating_run_time: ${heating_run_time}
+    min_fanning_off_time: ${min_fanning_off_time}
+    min_fanning_run_time: ${min_fanning_run_time}
     min_idle_time: ${idle_time}
     cool_action:
       - switch.turn_on: relay_2
@@ -179,11 +183,14 @@ climate:
       - switch.turn_on: relay_6
       - switch.turn_on: relay_7
       - switch.turn_on: relay_8
+    fan_only_action:
+      - switch.turn_on: relay_5
     idle_action:
       - switch.turn_off: relay_1
       - switch.turn_off: relay_2
       - switch.turn_off: relay_3
       - switch.turn_off: relay_4
+      - switch.turn_off: relay_5
       - switch.turn_off: relay_6
       - switch.turn_off: relay_7
       - switch.turn_off: relay_8
@@ -332,6 +339,51 @@ sensor:
                       target_temperature_high: !lambda "return id(this_thermostat).target_temperature_high + ${encoder_temp_step};"
                   - component.update: this_display
                   - script.execute: display_on_off
+            - if:
+                condition:
+                  and:
+                     - script.is_running: display_on_off
+                     - display.is_displaying_page: page4
+                then:
+                  - lambda: |-
+                      if (id(this_thermostat).mode == 0) {
+                        auto call = id(this_thermostat).make_call();
+                        call.set_mode("HEAT_COOL");
+                        call.perform();
+                        return;
+                      }
+                      if (id(this_thermostat).mode == 1) {
+                        auto call = id(this_thermostat).make_call();
+                        call.set_mode("COOL");
+                        call.perform();
+                        return;
+                      }
+                      if (id(this_thermostat).mode == 2) {
+                        auto call = id(this_thermostat).make_call();
+                        call.set_mode("HEAT");
+                        call.perform();
+                        return;
+                      }
+                      if (id(this_thermostat).mode == 3) {
+                        auto call = id(this_thermostat).make_call();
+                        call.set_mode("FAN_ONLY");
+                        call.perform();
+                        return;
+                      }
+                      if (id(this_thermostat).mode == 4) {
+                        auto call = id(this_thermostat).make_call();
+                        call.set_mode("DRY");
+                        call.perform();
+                        return;
+                      }
+                      if (id(this_thermostat).mode == 5) {
+                        auto call = id(this_thermostat).make_call();
+                        call.set_mode("OFF");
+                        call.perform();
+                        return;
+                      }
+                  - component.update: this_display
+                  - script.execute: display_on_off
     on_anticlockwise:
       - if:
           condition:
@@ -354,6 +406,51 @@ sensor:
                   - climate.control:
                       id: this_thermostat
                       target_temperature_high: !lambda "return id(this_thermostat).target_temperature_high - ${encoder_temp_step};"
+                  - component.update: this_display
+                  - script.execute: display_on_off
+            - if:
+                condition:
+                  and:
+                     - script.is_running: display_on_off
+                     - display.is_displaying_page: page4
+                then:
+                  - lambda: |-
+                      if (id(this_thermostat).mode == 0) {
+                        auto call = id(this_thermostat).make_call();
+                        call.set_mode("DRY");
+                        call.perform();
+                        return;
+                      }
+                      if (id(this_thermostat).mode == 1) {
+                        auto call = id(this_thermostat).make_call();
+                        call.set_mode("OFF");
+                        call.perform();
+                        return;
+                      }
+                      if (id(this_thermostat).mode == 2) {
+                        auto call = id(this_thermostat).make_call();
+                        call.set_mode("HEAT_COOL");
+                        call.perform();
+                        return;
+                      }
+                      if (id(this_thermostat).mode == 3) {
+                        auto call = id(this_thermostat).make_call();
+                        call.set_mode("COOL");
+                        call.perform();
+                        return;
+                      }
+                      if (id(this_thermostat).mode == 4) {
+                        auto call = id(this_thermostat).make_call();
+                        call.set_mode("HEAT");
+                        call.perform();
+                        return;
+                      }
+                      if (id(this_thermostat).mode == 5) {
+                        auto call = id(this_thermostat).make_call();
+                        call.set_mode("FAN_ONLY");
+                        call.perform();
+                        return;
+                      }
                   - component.update: this_display
                   - script.execute: display_on_off
 
@@ -506,8 +603,36 @@ display:
           it.printf(10, 20, id(font2), "%.1f°C", id(this_thermostat).target_temperature_high);
       - id: page4
         lambda: |-
-          it.printf(50, 0, id(font3), "Mode");
+          it.printf(45, 0, id(font3), "Mode");
           it.line(0, 19, 128, 19);
+          if (id(this_thermostat).mode == 0) {
+            it.image(54, 24, id(power_standby_icon));
+            it.printf(47, 48, id(font1), "OFF");
+          }
+          if (id(this_thermostat).mode == 1) {
+            it.image(54, 24, id(sync_icon));
+            it.printf(47, 48, id(font1), "H-C");
+          }
+          if (id(this_thermostat).mode == 2) {
+            it.image(54, 24, id(snowflake));
+            it.printf(42, 48, id(font1), "COOL");
+          }
+          if (id(this_thermostat).mode == 3) {
+            it.image(54, 24, id(fire_icon));
+            it.printf(42, 48, id(font1), "HEAT");
+          }
+          if (id(this_thermostat).mode == 4) {
+            it.image(54, 24, id(fan_icon));
+            it.printf(47, 48, id(font1), "FAN");
+          }
+          if (id(this_thermostat).mode == 5) {
+            it.image(54, 24, id(water_percent_icon));
+            it.printf(47, 48, id(font1), "DRY");
+          }
+          if (id(this_thermostat).mode == 6) {
+            it.image(54, 24, id(refresh_auto));
+            it.printf(42, 48, id(font1), "AUTO");
+          }
       - id: page5
         lambda: |-
            it.printf(15, 0, id(font3), "MT3608 Voltage");
