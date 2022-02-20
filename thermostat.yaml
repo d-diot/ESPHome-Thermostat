@@ -18,7 +18,7 @@ substitutions:
   v_sensor_name: "${room_name} thermostat output voltage"
   
 # Temperature and humidity sensor parameters
-  si7021_update_interval: "300s"
+  si7021_update_interval: "60s"
   temp_decimals: "1"
   hum_decimals: "1"
   
