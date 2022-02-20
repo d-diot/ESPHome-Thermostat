@@ -43,7 +43,7 @@ substitutions:
 # Buzzer parameters
   click_sound: "click:d=32,o=5,b=200:32g"
   long_press_sound: "long:d=8,o=5,b=200:8c"
-  intro_sound: "A-Team:d=8,o=5,b=125:4d#6,a#,2d#6,16p,g#,4a#,4d#.,p,16g,16a#,d#6,a#,f6,2d#6,16p,c#.6,16c6,16a#,g#.,2a#"
+  intro_sound: "d-diot:d=4,o=5,b=130:8d4,8e4,8g,8a,8c7,d.7,8d7,8e7,8d7,f#.7,8d8,8f#7#"
   
 # Thermostat parameters
   default_low_t: "20 °C"
@@ -563,32 +563,25 @@ display:
           it.printf(it.get_width(), 22, id(font1), TextAlign::RIGHT, "%.1f%%", id(si7021_humidity_sensor).state);
           it.line(0, 45, 128, 45);
           if (id(this_thermostat).mode == 0) {
-            it.image(55, 48, id(power_standby_icon));
-            it.printf(0, 49, id(font3), "OFF");
+            it.image(0, 48, id(power_standby_icon));
           }
           if (id(this_thermostat).mode == 1) {
-            it.image(55, 48, id(sync_icon));
-            it.printf(0, 49, id(font3), "H-C");
+            it.image(0, 48, id(sync_icon));
           }
           if (id(this_thermostat).mode == 2) {
-            it.image(55, 48, id(snowflake));
-            it.printf(0, 49, id(font3), "COOL");
+            it.image(0, 48, id(snowflake));
           }
           if (id(this_thermostat).mode == 3) {
-            it.image(55, 48, id(fire_icon));
-            it.printf(0, 49, id(font3), "HEAT");
+            it.image(0, 48, id(fire_icon));
           }
           if (id(this_thermostat).mode == 4) {
-            it.image(55, 48, id(fan_icon));
-            it.printf(0, 49, id(font3), "FAN");
+            it.image(0, 48, id(fan_icon));
           }
           if (id(this_thermostat).mode == 5) {
-            it.image(55, 48, id(water_percent_icon));
-            it.printf(0, 49, id(font3), "DRY");
+            it.image(0, 48, id(water_percent_icon));
           }
           if (id(this_thermostat).mode == 6) {
-            it.image(55, 48, id(refresh_auto));
-            it.printf(0, 49, id(font3), "AUTO");
+            it.image(0, 48, id(refresh_auto));
           }
           it.printf(it.get_width(), 0, id(font3), TextAlign::RIGHT, "%.1f°C - %.1f°C", id(this_thermostat).target_temperature_low, id(this_thermostat).target_temperature_high);
       - id: page2
